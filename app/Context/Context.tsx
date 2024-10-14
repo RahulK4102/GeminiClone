@@ -1,77 +1,76 @@
 "use client";
 import runChat from "@/config/gemini";
-import { Dispatch, SetStateAction } from 'react';
-import React, { createContext, ReactNode, useState } from "react";
+import React, { createContext, useState, ReactNode, Dispatch, SetStateAction } from "react";
 
 interface ContextProviderProps {
-    children: ReactNode;
-    className?: string; // Make className optional
-  }
+  children: ReactNode;
+  className?: string;
+}
 
-  interface ContextValue {
-    prevPrompts: string[];
-    setPrevPrompts: Dispatch<SetStateAction<string[]>>;
-    setRecentPrompt: Dispatch<SetStateAction<string>>;
-    onSent: (prompt: string) => Promise<void>;
-    recentPrompt: string;
-    showResult: boolean;
-    loading: boolean;
-    load: boolean;
-    resultData: string;
-    input: string;
-    setInput: Dispatch<SetStateAction<string>>;
-  }
+interface ContextValue {
+  prevPrompts: string[];
+  setPrevPrompts: Dispatch<SetStateAction<string[]>>;
+  setRecentPrompt: Dispatch<SetStateAction<string>>;
+  onSent: (prompt: string) => Promise<void>;
+  recentPrompt: string;
+  showResult: boolean;
+  loading: boolean;
+  load: boolean;
+  resultData: string;
+  input: string;
+  setInput: Dispatch<SetStateAction<string>>;
+}
 
 export const Context = createContext<ContextValue | undefined>(undefined);
 
 const ContextProvider: React.FC<ContextProviderProps> = ({ children }) => {
-    const[input,setInput] = useState("");  
-    const[recentPrompt,setRecentPrompt] = useState("");  
-    const [prevPrompts, setPrevPrompts] = useState<string[]>([]); 
-    const[showResult,setShowResult] = useState(false);  
-    const[loading,setLoading] = useState(false);  
-    const[load,setLoad] = useState(true);  
-    const[resultData,setResultData] = useState("");  
+  // State declarations
+  const [input, setInput] = useState("");  
+  const [recentPrompt, setRecentPrompt] = useState("");  
+  const [prevPrompts, setPrevPrompts] = useState<string[]>([]); 
+  const [showResult, setShowResult] = useState(false);  
+  const [loading, setLoading] = useState(false);  
+  const [load, setLoad] = useState(true);  
+  const [resultData, setResultData] = useState("");  
 
-  const delayPara = (index:number,nextWord:string) =>{
-      setTimeout(function() {
-        setResultData(prev=>prev+nextWord);
-      },75*index)
-      setLoad(false);
-  }
-  
-  const onSent = async (prompt:string) => {
-        setResultData("");
-        setInput("");
-        setLoading(true);
-        
-        setShowResult(true);
-        let response;
-        if(prompt !== undefined){
-          response = await runChat(prompt);
-          setRecentPrompt(prompt);
-        }else{
-          setPrevPrompts(prev=>[...prev,input]);
-          setRecentPrompt(input);
-          response = await runChat(input);
-        }
-        let responseArray = response.split("**");
-        let newResponse: string = '';
-        for (let i = 0; i < responseArray.length; i++) {
-          if(i===0 || i%2 !== 1){
-            newResponse += responseArray[i];
-          }else{
-            newResponse += "<br>"+responseArray[i]+"</br>";
-          }
-        }
-        let newResponse2 = newResponse.split("*").join("</br>")
-        let newResponseArray = newResponse2.split(" ");
-        for (let i = 0; i < newResponseArray.length; i++) {
-          const nextWord = newResponseArray[i];
-          delayPara(i,nextWord+" ");
-        }
-        setLoading(false);
-    };
+  // Function to delay adding words to resultData with animation effect
+  const delayPara = (index: number, nextWord: string) => {
+    setTimeout(() => {
+      setResultData(prev => prev + nextWord);
+    }, 75 * index);
+    setLoad(false);
+  };
+
+  // Function to handle sending a prompt
+  const onSent = async (prompt: string) => {
+    setLoading(true);
+    setShowResult(true);
+    setResultData("");
+    
+    const userPrompt = prompt || input;  // Use prompt if provided, else input state
+    if (!prompt) {
+      setPrevPrompts(prev => [...prev, input]);
+      setRecentPrompt(input);
+    }
+
+    const response = await runChat(userPrompt);
+    setRecentPrompt(userPrompt);
+
+    // Handle response formatting
+    const formattedResponse = response
+      .split("**")
+      .map((part, i) => (i % 2 ? `<br>${part}</br>` : part))
+      .join("")
+      .replace(/\*/g, "</br>");
+
+    // Split response into words and display gradually
+    const responseWords = formattedResponse.split(" ");
+    responseWords.forEach((word, index) => delayPara(index, word + " "));
+
+    setLoading(false);
+  };
+
+  // Context value
   const contextValue: ContextValue = {
     prevPrompts,
     setPrevPrompts,
@@ -83,7 +82,7 @@ const ContextProvider: React.FC<ContextProviderProps> = ({ children }) => {
     load,
     resultData,
     input,
-    setInput
+    setInput,
   };
 
   return (
